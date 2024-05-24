@@ -1,0 +1,29 @@
+name: 天翼云盘签到
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: 30 2 * * *
+jobs:
+  sigin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 14
+      - uses: actions/checkout@v4
+        with:
+          repository: wes-lin/Cloud189Checkin
+          ref: main
+      - name: init
+        run: npm install
+      - name: run
+        uses: nick-fields/retry@v3
+        env:
+          TY_USER_NAME: ${{secrets.TY_USER_NAME}}
+          TY_PASSWORD: ${{secrets.TY_PASSWORD}}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          command: npm start
