@@ -1,0 +1,26 @@
+name: 编译go-app
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: j2rong4cn/go-app
+          token: ${{secrets.REPO_TOKEN}}
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+      - name: Build
+        run: bash build.sh
+      - name: Upload files
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-app
+          path: |
+            dist/*
