@@ -1,11 +1,8 @@
 name: Build KernelSU for dipper
 env:
   arch: arm64
-  kernel_repository: j2rong4cn/android_kernel_xiaomi_sdm845
-  kernel_branch: a14
-  kernel_patch: |
-    allow-init-exec-ksud-under-nosuid.patch
-    support-umount-modules-kernel.patch
+  kernel_repository: crdroidandroid/android_kernel_xiaomi_sdm845
+  kernel_branch: '15.0'
   defconfig: vendor/xiaomi/mi845_defconfig vendor/xiaomi/dipper.config
   extra_config: |
     CONFIG_TCP_CONG_HTCP=n
@@ -17,12 +14,6 @@ env:
     CONFIG_TCP_CONG_WESTWOOD=y
     CONFIG_DEFAULT_WESTWOOD=y
 
-    CONFIG_LOCALVERSION="-K"
-    #KernelSU
-    CONFIG_KPROBES=y
-    CONFIG_HAVE_KPROBES=y
-    CONFIG_KPROBE_EVENTS=y
-
 on:
   workflow_dispatch:
     inputs:
@@ -31,13 +22,13 @@ on:
         type: string
         default: "static/boot-source.dipper.img"
       kernelsu_version:
-        description: "KernelSU Version"
+        description: "RKSU Version"
         type: string
         default: "main"
 
 jobs:
   build:
-    name: "KernelSU Version: ${{ inputs.kernelsu_version }}"
+    name: "RKSU Version: ${{ inputs.kernelsu_version }}"
     runs-on: ubuntu-latest
     permissions:
       actions: write
