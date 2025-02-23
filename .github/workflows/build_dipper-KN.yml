@@ -1,11 +1,8 @@
 name: Build KernelSU-Next for dipper
 env:
   arch: arm64
-  kernel_repository: j2rong4cn/android_kernel_xiaomi_sdm845
-  kernel_branch: a14
-  kernel_patch: |
-    allow-init-exec-ksud-under-nosuid.patch
-    support-umount-modules-kernel.patch
+  kernel_repository: crdroidandroid/android_kernel_xiaomi_sdm845
+  kernel_branch: '15.0'
   defconfig: vendor/xiaomi/mi845_defconfig vendor/xiaomi/dipper.config
   extra_config: |
     CONFIG_TCP_CONG_HTCP=n
@@ -16,12 +13,6 @@ env:
     CONFIG_TCP_CONG_BBR=y
     CONFIG_TCP_CONG_WESTWOOD=y
     CONFIG_DEFAULT_WESTWOOD=y
-
-    CONFIG_LOCALVERSION="-KN"
-    #KernelSU
-    CONFIG_KPROBES=y
-    CONFIG_HAVE_KPROBES=y
-    CONFIG_KPROBE_EVENTS=y
 
 on:
   workflow_dispatch:
@@ -55,7 +46,8 @@ jobs:
         rm -rf KernelSU
         rm -rf KernelSU-Next
         rm -rf drivers/kernelsu
-        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
+
 
     - name: Retrieve information
       run: |
@@ -91,7 +83,7 @@ jobs:
         done <<<"$kernelsu_patch"
 
     - name: Setup ccache
-      uses: hendrikmuhs/ccache-action@v1.2.12
+      uses: hendrikmuhs/ccache-action@v1.2.17
       with:
         key: ${{ env.ccache_key }}
         max-size: 2G
