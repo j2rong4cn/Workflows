@@ -1,8 +1,8 @@
 name: Build Kernel for dipper
 env:
   arch: arm64
-  kernel_repository: j2rong4cn/android_kernel_xiaomi_sdm845
-  kernel_branch: a14
+  kernel_repository: crdroidandroid/android_kernel_xiaomi_sdm845
+  kernel_branch: 15.0
   defconfig: vendor/xiaomi/mi845_defconfig vendor/xiaomi/dipper.config
   extra_config: |
     CONFIG_TCP_CONG_HTCP=n
