@@ -1,0 +1,56 @@
+name: 天翼云盘签到
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: 30 3 * * *
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔀 random delay 0-300 seconds
+        run: sleep $((RANDOM % 301))
+
+      - name: 🔌 Check out code
+        uses: actions/checkout@main
+        with:
+          repository: wes-lin/Cloud189Checkin
+          ref: main
+
+      - name: 🔨 Setup Node.js environment
+        uses: actions/setup-node@main
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: 📹 Restore cached Cookie
+        id: cache-cookie-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: .token
+          key: ${{ runner.os }}-Cloud189Checkin-token
+          restore-keys: ${{ runner.os }}-Cloud189Checkin-token-
+
+      - name: 🔧 Init secrets
+        uses: shine1594/secrets-to-env-action@master
+        with:
+          secrets: ${{ toJSON(secrets) }}
+          secrets_env: production
+          prefix_prod: ""
+          file_name_prod: .env
+
+      - name: 📡 Init dependencies
+        run: npm install
+
+      - name: 🚀 Run
+        uses: nick-fields/retry@master
+        with:
+          timeout_minutes: 30
+          max_attempts: 3
+          command: npm start
+
+      - name: 📹 Save cached Cookie
+        uses: actions/cache/save@v4
+        with:
+          path: .token
+          key: ${{ runner.os }}-Cloud189Checkin-token-${{ hashFiles('.token/*.json') }}
