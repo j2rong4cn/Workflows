@@ -21,4 +21,4 @@ jobs:
     steps:
       - uses: igorjs/gh-actions-clean-workflow@main
         with:
-          days_old: ${{ github.event.inputs.days_old || env.SCHEDULED_DAYS_OLD }}
+          runs_older_than: ${{ github.event.inputs.days_old || env.SCHEDULED_DAYS_OLD }}

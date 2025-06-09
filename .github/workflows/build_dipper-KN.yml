@@ -70,44 +70,24 @@ jobs:
           key: ${{ steps.info.outputs.ccache_key }}
           max-size: 2G
 
-      - name: Restore toolchains from cache
-        uses: actions/cache/restore@main
+      - name: 恢复工具链 clang
+        id: toolchain-clang
+        uses: actions/cache@main
         with:
-          path: toolchains
-          key: toolchains
+          path: toolchain-clang
+          key: toolchain-clang-${{ runner.os }}
 
-      - name: Check & Download Clang-aosp
+      - name: 下载工具链 clang
+        if: steps.toolchain-clang.outputs.cache-hit != 'true'
         run: |
-          [ -d toolchains/bin ] || (
-            mkdir -p toolchains
-            wget -qO - https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-build-2023/clang-r487747c.tar.gz | tar -zxvC toolchains
-            [ -d toolchains/bin ] && echo toolchains_is_save=true | tee -a $GITHUB_ENV
-          )
-          [ $? -eq 0 ] && echo ${{ github.workspace }}/toolchains/bin | tee -a $GITHUB_PATH
+          mkdir -p toolchain-clang
+          wget -qO - https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-2025/clang-r547379.tar.gz | tar -zxvC toolchain-clang
 
-      - name: Check & Download Gcc-aosp
+      - name: 设置工具链
         run: |
-          [ -d toolchains/gcc-64 ] || (
-            mkdir -p toolchains/gcc-64
-            wget -qO - https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz | tar -zxvC toolchains/gcc-64
-            [ -d toolchains/gcc-64/bin ] && echo toolchains_is_save=true | tee -a $GITHUB_ENV
-          )
-          [ $? -eq 0 ] && echo "GCC_64=CROSS_COMPILE=${{ github.workspace }}/toolchains/gcc-64/bin/aarch64-linux-android-" | tee -a $GITHUB_ENV
-
-          [ -d toolchains/gcc-32 ] || (
-            mkdir -p toolchains/gcc-32
-            wget -qO - https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz | tar -zxvC toolchains/gcc-32
-            [ -d toolchains/gcc-32/bin ] && echo toolchains_is_save=true | tee -a $GITHUB_ENV
-          )
-          [ $? -eq 0 ] && echo "GCC_32=CROSS_COMPILE_ARM32=${{ github.workspace }}/toolchains/gcc-32/bin/arm-linux-androideabi-" | tee -a $GITHUB_ENV
-
-      - name: Save toolchains to cache
-        if: ${{ !cancelled() && env.toolchains_is_save == 'true' }}
-        continue-on-error: true
-        uses: actions/cache/save@main
-        with:
-          path: toolchains
-          key: toolchains
+          echo ${{ github.workspace }}/toolchain-clang/bin | tee -a $GITHUB_PATH
+          sudo apt-get update
+          sudo apt-get install binutils-arm-linux-gnueabihf binutils-aarch64-linux-gnu -y
 
       - name: Build kernel
         env:
@@ -122,8 +102,8 @@ jobs:
 
           make O=out ARCH=${{ env.arch }} ${{ env.defconfig }} extra.config && \
           make O=out ARCH=${{ env.arch }} -j $(nproc --all) CC="ccache clang" \
-            $GCC_64 $GCC_32 \
-            LLVM=1 LLVM_IAS=1 CLANG_TRIPLE=aarch64-linux-gnu-
+            CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnuabeihf- \
+            LLVM=1 LLVM_IAS=1
 
       - name: Check output files
         id: check
