@@ -1,0 +1,215 @@
+name: 小米8内核
+
+env:
+  android_version: "kernel"
+  kernel_version: "4.9"
+  sub_level: "186"
+  extra_config: |
+    CONFIG_TASK_DELAY_ACCT=y
+    CONFIG_PROCESS_RECLAIM=y
+    CONFIG_RTMM=y
+    CONFIG_KTRACE=y
+    CONFIG_EXT4_FS_ES_BARRIER=y
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "自定义版本名(如6.1.93后面的字符/留空则使用默认版本号)"
+        required: false
+        type: string
+        default: "-perf-g10af704"
+      use_kpm:
+        description: "是否开启KPM功能?"
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - name: 设定 CONFIG 环境变量
+        run: |
+          pwd; df -h
+          set -x
+          sudo apt-get update
+          echo CONFIG="${{ env.android_version }}-${{ env.kernel_version }}" >> $GITHUB_ENV
+
+      # - name: 克隆 AnyKernel3 和其他依赖项
+      #   run: |
+      #     set -x
+      #     git clone https://github.com/WildPlusKernel/AnyKernel3.git -b "non-gki"
+      #     git clone https://github.com/ShirkNeko/SukiSU_patch.git
+
+      - name: 克隆内核源码
+        run: |
+          rm -rf $CONFIG
+          set -x
+          mkdir $CONFIG
+          cd $CONFIG
+          git clone -j $(nproc --all) --no-tags --depth=1 https://github.com/j2rong4cn/Xiaomi_Kernel_OpenSource -b dipper-q-oss common
+
+      - name: 添加 KernelSU
+        if: false
+        run: |
+          set -x
+          cd "$CONFIG"
+          curl -LSs "https://raw.githubusercontent.com/j2rong4cn/SukiSU-Ultra/main/kernel/setup.sh" | bash -s nongki
+
+      # - name: 应用隐藏某特征的补丁
+      #   run: |
+      #     set -x
+      #     cd "$CONFIG/common"
+      #     cp ../../SukiSU_patch/69_hide_stuff.patch ./
+      #     patch -p1 -F 3 < 69_hide_stuff.patch
+
+      - name: 添加SUSFS配置设置
+        if: false
+        run: |
+          set -x
+          cd "$CONFIG"
+
+          echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/extra.config
+          if [ "${{ inputs.use_kpm }}" == "true" ]; then
+            echo "CONFIG_KPM=y" >> ./common/arch/arm64/configs/extra.config
+          fi
+          echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./common/arch/arm64/configs/extra.config
+          # echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./common/arch/arm64/configs/extra.config
+
+          # echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/extra.config
+          # echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/extra.config
+          # echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/extra.config
+          # echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./common/arch/arm64/configs/extra.config
+          # echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./common/arch/arm64/configs/extra.config
+          # echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./common/arch/arm64/configs/extra.config
+          # echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./common/arch/arm64/configs/extra.config
+          # echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./common/arch/arm64/configs/extra.config
+          # echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/extra.config
+          # echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./common/arch/arm64/configs/extra.config
+          # echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./common/arch/arm64/configs/extra.config
+          # echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./common/arch/arm64/configs/extra.config
+          # echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./common/arch/arm64/configs/extra.config
+          # echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/extra.config
+          # echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/extra.config
+
+      - name: 配置内核名称
+        run: |
+          set -x
+          cd "$CONFIG"
+
+          sed -i 's|-dirty||' ./common/scripts/setlocalversion
+          sed -i '$s|echo "\$res"|echo "${{ inputs.version }}"|' ./common/scripts/setlocalversion
+          sed -i '/^CONFIG_LOCALVERSION=/ s/="\([^"]*\)"/="${{ inputs.version }}"/' ./common/arch/arm64/configs/dipper_user_defconfig
+
+          CURRENT_TIME=$(date -u +"%a %b %d %H:%M:%S UTC %Y")
+          echo "CURRENT_TIME=$CURRENT_TIME"
+          perl -pi -e "s{UTS_VERSION=\"\\\$\(echo \\\$UTS_VERSION \\\$CONFIG_FLAGS \\\$TIMESTAMP \\| cut -b -\\\$UTS_LEN\)\"}{UTS_VERSION=\"#1 SMP PREEMPT $CURRENT_TIME\"}" ./common/scripts/mkcompile_h
+
+      - name: 恢复工具链 gcc
+        id: toolchain-gcc
+        uses: actions/cache@main
+        with:
+          path: toolchain-gcc
+          key: toolchain-gcc-${{ runner.os }}
+
+      - name: 下载工具链 gcc
+        if: steps.toolchain-gcc.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p toolchain-gcc/64
+          wget -qO - https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-9.0.0_r61.tar.gz | tar -zxvC toolchain-gcc/64
+
+          mkdir -p toolchain-gcc/32
+          wget -qO - https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-9.0.0_r61.tar.gz | tar -zxvC toolchain-gcc/32
+
+      - name: 设置工具链
+        run: |
+          echo "${{ github.workspace }}/toolchain-gcc/64/bin" | tee -a $GITHUB_PATH
+          echo "${{ github.workspace }}/toolchain-gcc/32/bin" | tee -a $GITHUB_PATH
+
+      - name: 设置 swap
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 10
+
+      - name: 设置 ccache
+        uses: hendrikmuhs/ccache-action@main
+        with:
+          key: xiaomi_8
+          max-size: 2G
+
+      - uses: LizardByte/setup-python-action@master
+        with:
+          python-version: "2.7"
+
+      - name: 构建内核
+        env:
+          CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+          CCACHE_NOHASHDIR: "true"
+          CCACHE_HARDLINK: "true"
+        run: |
+          set -x
+          sudo apt-get install flex bison -y
+          cd "$CONFIG/common"
+          echo "$extra_config" >> arch/arm64/configs/extra.config
+          
+          args="-j $(nproc --all) O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi-"
+          make $args dipper_user_defconfig extra.config && make $args CC='ccache aarch64-linux-android-gcc'
+
+      - name: 修补 kpm
+        if: inputs.use_kpm
+        run: |
+          set -x
+          cd "$CONFIG/common/out/arch/arm64/boot/"
+          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU_patch/refs/heads/main/kpm/patch_linux" -o patch
+          chmod 777 patch
+          ./patch
+          rm -rf Image
+          mv oImage Image
+
+      # - name: 创建 AnyKernel3
+      #   run: |
+      #     set -x
+      #     ls $CONFIG/common/out/arch/arm64/boot/
+      #     cp $CONFIG/common/out/arch/arm64/boot/Image.gz-dtb .
+      #     cd ./AnyKernel3
+
+      #     # Create and upload zip for each format
+      #     ZIP_NAME="${{ env.android_version }}-${{ env.kernel_version }}.${{ env.sub_level }}-AnyKernel3.zip"
+      #     echo "Creating zip file: $ZIP_NAME..."
+      #     mv ../Image.gz-dtb ./Image.gz-dtb
+      #     zip -r "../$ZIP_NAME" ./*
+
+      - name: 检查编译资产
+        run: |
+          pwd; df -h
+          set -x
+          mkdir outputs
+          # mv *AnyKernel3.zip outputs
+          mv $CONFIG/common/out/.config outputs/
+
+          mkdir outputs-ko
+          find $CONFIG/common/out -type f -name '*.ko' | while read f; do
+            mv $f outputs-ko/
+          done
+          mkdir outputs-image
+          mv $CONFIG/common/out/arch/arm64/boot/Image* outputs-image
+          
+
+      - name: 上传编译资产
+        uses: actions/upload-artifact@main
+        with:
+          include-hidden-files: true
+          name: kernel-${{ env.kernel_version }}
+          path: |
+            outputs/
+
+      - name: 上传编译资产
+        uses: actions/upload-artifact@main
+        with:
+          include-hidden-files: true
+          name: image-${{ env.kernel_version }}
+          path: |
+            outputs-image/
