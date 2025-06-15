@@ -1,0 +1,24 @@
+name: 清理Workflow日志
+env:
+  SCHEDULED_DAYS_OLD: "7"
+
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+    inputs:
+      days_old:
+        description: "The amount of days old to delete"
+        default: "7"
+        required: false
+
+permissions:
+  actions: write
+
+jobs:
+  clean-logs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: igorjs/gh-actions-clean-workflow@main
+        with:
+          runs_older_than: ${{ github.event.inputs.days_old || env.SCHEDULED_DAYS_OLD }}
