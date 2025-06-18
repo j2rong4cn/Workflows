@@ -1,0 +1,49 @@
+name: 编译GitLens
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "要编译的GitLens版本"
+        default: "latest"
+        required: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@main
+
+      - name: Checkout gitlens
+        run: |
+          set -x
+          version='${{ github.event.inputs.version }}'
+          if [ -z "$version"  ] || [ "$version" = "latest" ]; then
+            version=$(curl -L https://api.github.com/repos/gitkraken/vscode-gitlens/releases/latest | jq -r .tag_name)
+          fi
+          git clone --depth=1 -b $version https://github.com/gitkraken/vscode-gitlens.git
+
+      - name: Setup node
+        uses: actions/setup-node@main
+        with:
+          node-version: latest
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@master
+        with:
+          package_json_file: vscode-gitlens/package.json
+
+      - name: Build
+        run: |
+          set -x
+          cd vscode-gitlens
+          patch -p1 -F 3 < ../patches/GitLens.patch
+          git diff
+          pnpm install
+          pnpm run package
+
+      - name: Upload files
+        uses: actions/upload-artifact@main
+        with:
+          name: GitLens
+          path: "vscode-gitlens/*.vsix"

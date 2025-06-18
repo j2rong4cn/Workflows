@@ -1,0 +1,31 @@
+# 1.7.20
+--- a/src/plus/gk/utils/subscription.utils.ts
++++ b/src/plus/gk/utils/subscription.utils.ts
+@@ -86,6 +86,7 @@ export function getSubscriptionNextPaidPlanId(subscription: Optional<Subscriptio
+ 	return orderedPaidPlans[next] ?? 'pro';
+ }
+ 
++let accountVerified: boolean | undefined;
+ export function getSubscriptionPlan(
+ 	id: SubscriptionPlanIds,
+ 	bundle: boolean,
+@@ -97,7 +98,10 @@ export function getSubscriptionPlan(
+ 	nextTrialOptInDate?: string,
+ ): SubscriptionPlan {
+ 	return {
+-		id: id,
++		get id(): SubscriptionPlanIds {
++			if (accountVerified) return 'pro';
++			return id;
++		},
+ 		name: getSubscriptionProductPlanName(id),
+ 		bundle: bundle,
+ 		cancelled: cancelled,
+@@ -212,6 +216,7 @@ export function isSubscriptionPaidPlan(id: SubscriptionPlanIds): id is PaidSubsc
+ }
+ 
+ export function isSubscriptionExpired(subscription: Optional<Subscription, 'state'>): boolean {
++	accountVerified = subscription.account?.verified;
+ 	const remaining = getSubscriptionTimeRemaining(subscription);
+ 	return remaining != null && remaining <= 0;
+ }
