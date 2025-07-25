@@ -6,6 +6,8 @@ env:
   sub_level: "75"
   extra_config: |
     CONFIG_ARCH_SUPPORTS_PGO_CLANG=y
+    CONFIG_NF_LOG_IPV4=y
+    CONFIG_NF_LOG_IPV6=y
 
 on:
   workflow_dispatch:
