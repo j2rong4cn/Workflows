@@ -6,6 +6,7 @@ env:
   sub_level: "75"
   extra_config: |
     CONFIG_ARCH_SUPPORTS_PGO_CLANG=y
+    CONFIG_NETFILTER_XT_TARGET_LOG=y
 
 on:
   workflow_dispatch:
