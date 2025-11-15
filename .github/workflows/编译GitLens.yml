@@ -6,6 +6,10 @@ on:
         description: "要编译的GitLens版本"
         default: "latest"
         required: false
+      node-version:
+        description: "NodeJs的版本"
+        default: "22"
+        required: true
 
 jobs:
   build:
@@ -26,7 +30,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@main
         with:
-          node-version: latest
+          node-version: ${{ github.event.inputs.node-version }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@master
