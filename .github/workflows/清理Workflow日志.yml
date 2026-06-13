@@ -1,6 +1,4 @@
 name: 清理Workflow日志
-env:
-  SCHEDULED_DAYS_OLD: "7"
 
 on:
   schedule:
@@ -11,14 +9,18 @@ on:
         description: "The amount of days old to delete"
         default: "7"
         required: false
-
-permissions:
-  actions: write
+      repository:
+        description: "The repository to clean logs for (owner\\repo)"
+        required: false
 
 jobs:
   clean-logs:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     steps:
       - uses: igorjs/gh-actions-clean-workflow@main
         with:
-          runs_older_than: ${{ github.event.inputs.days_old || env.SCHEDULED_DAYS_OLD }}
+          runs_older_than: ${{ github.event.inputs.days_old || '7' }}
+          repo: ${{ github.event.inputs.repository || github.repository }}
+          token: ${{ secrets.REPO_TOKEN || secrets.GITHUB_TOKEN }}
